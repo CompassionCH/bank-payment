@@ -3,7 +3,7 @@
 # @author: David Wulliamoz, Emanuel Cino
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
-from odoo import models, fields
+from odoo import models, fields, exceptions
 
 
 class AccountPaymentLine(models.Model):
@@ -20,14 +20,13 @@ class AccountPaymentLine(models.Model):
             'full_reconcile_id.id')
         payment_orders = self.mapped('order_id')
         if not full_reconcile_ids:
-            self.move_line_id = False
-            self.payment_line_returned = True
+            move_line_id = False
+            payment_line_returned = True
             self._post_free_message()
 
         else:
             #throw an error
-
-
+            raise exceptions.UserError('No payment line found !')
 
     def _post_free_message(self):
         """
@@ -35,7 +34,6 @@ class AccountPaymentLine(models.Model):
         post message on the payment order for each payment_line unlinked from the move_line.
         """
         for payment_line in self:
-
             # Create a link to the invoice that was removed
             invoice = payment_line.move_line_id.invoice_id
             order = payment_line.order_id
