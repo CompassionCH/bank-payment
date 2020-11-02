@@ -15,18 +15,15 @@ class AccountPaymentLine(models.Model):
         check if the payment_line is returned, if not, check the related 
         move_line is not reconciled 
         """
-        all_account_move_lines = self.mapped('move_line_id')
-        full_reconcile_ids = all_account_move_lines.mapped(
-            'full_reconcile_id.id')
-        payment_orders = self.mapped('order_id')
-        if not full_reconcile_ids:
-            move_line_id = False
-            payment_line_returned = True
-            self._post_free_message()
+        for rec in self:
+            if not rec.move_line_id.full_reconcile_id:
+                rec.move_line_id = False
+                rec.payment_line_returned = True
+                rec._post_free_message()
 
-        else:
-            #throw an error
-            raise exceptions.UserError('No payment line found !')
+            else:
+                #throw an error
+                raise exceptions.UserError('No payment line found !')
 
     def _post_free_message(self):
         """
@@ -43,10 +40,10 @@ class AccountPaymentLine(models.Model):
             payment_order_url = u'<a href="web#id={}&view_type=form&model=' \
                 u'account.payment.order">{}</a>'.format(order.id, order.name)
             # Add a message to the invoice
-            invoice.message_post(
-                _(u"The invoice has been marked as returned and freed from ") + u"{}, {}"
-                .format(payment_order_url, cancel_reason)
+            invoice.message_post(self,
+                (u"The invoice has been marked as returned and freed from " + u"{}"
+                ).format(payment_order_url)
             )
             # Add a message to the payment order
-            payment_line.order_id.message_post(
-                invoice_url + _(u" has been unlinked from the line: ") + payment_line.name)
+            payment_line.order_id.message_post(self,
+                invoice_url + (u" has been unlinked from the line: ") + payment_line.name)

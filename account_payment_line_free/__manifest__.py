@@ -14,8 +14,8 @@
         'account_cancel',
     ],
     'data': [
-#        'views/invoice_view.xml',
-#        'views/payment_line_view.xml',
+        'views/invoice_view.xml',
+        'views/payment_line_view.xml',
     ],
     'installable': True,
 }
