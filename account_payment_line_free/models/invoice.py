@@ -13,12 +13,11 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def free_payment_lines(self):
-        """ This function simply finds related payment lines and cancel them.
+        """ finds related payment lines and free them.
         """
         mov_line_obj = self.env['account.move.line']
         pay_line_obj = self.env['account.payment.line']
-        move_ids = self.mapped('move_id.id')
-        move_line_ids = mov_line_obj.search([('move_id', 'in', move_ids)]).ids
+        move_line_ids = mov_line_obj.search([('move_id', 'in', self.move_id)]).ids
         payment_lines = pay_line_obj.search([
             ('move_line_id', 'in', move_line_ids)
         ])

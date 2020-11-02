@@ -17,9 +17,9 @@ class AccountPaymentLine(models.Model):
         """
         for rec in self:
             if not rec.move_line_id.full_reconcile_id:
+                rec._post_free_message()
                 rec.move_line_id = False
                 rec.payment_line_returned = True
-                rec._post_free_message()
 
             else:
                 #throw an error
@@ -41,9 +41,9 @@ class AccountPaymentLine(models.Model):
                 u'account.payment.order">{}</a>'.format(order.id, order.name)
             # Add a message to the invoice
             invoice.message_post(self,
-                (u"The invoice has been marked as returned and freed from " + u"{}"
+                body = (u"The invoice has been marked as returned and freed from " + u"{}"
                 ).format(payment_order_url)
             )
             # Add a message to the payment order
-            payment_line.order_id.message_post(self,
+            payment_line.order_id.message_post(self,body = 
                 invoice_url + (u" has been unlinked from the line: ") + payment_line.name)
