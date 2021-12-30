@@ -411,7 +411,6 @@ msgstr "Partner"
 #. module: account_banking_mandate
 #: model:ir.model.fields,field_description:account_banking_mandate.field_account_banking_mandate__payment_line_ids_count
 #, fuzzy
-#| msgid "Payment Lines"
 msgid "Payment Line Ids Count"
 msgstr "Righe di pagamento"
 
@@ -429,7 +428,6 @@ msgstr "Metodi di pagamento"
 #: code:addons/account_banking_mandate/models/account_banking_mandate.py:114
 #: model_terms:ir.ui.view,arch_db:account_banking_mandate.views_mandate_form_buttons
 #, fuzzy, python-format
-#| msgid "Payment Lines"
 msgid "Payment lines"
 msgstr "Righe di pagamento"
 
@@ -507,7 +505,7 @@ msgstr ""
 "%s)."
 
 #. module: account_banking_mandate
-#: code:addons/account_banking_mandate/models/account_move_line.py:46
+#: code:addons/account_banking_mandate/models/account_move_line.py:42
 #, python-format
 msgid ""
 "The item %s of journal %s has a different company than that of the linked "

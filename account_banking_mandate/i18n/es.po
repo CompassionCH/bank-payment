@@ -424,7 +424,6 @@ msgstr "Métodos de pago"
 #: code:addons/account_banking_mandate/models/account_banking_mandate.py:114
 #: model_terms:ir.ui.view,arch_db:account_banking_mandate.views_mandate_form_buttons
 #, fuzzy, python-format
-#| msgid "Payment Lines"
 msgid "Payment lines"
 msgstr "Líneas de pago"
 
@@ -500,7 +499,7 @@ msgstr ""
 "La factura %s tiene una empresa diferente que el mandato asociado (%s)."
 
 #. module: account_banking_mandate
-#: code:addons/account_banking_mandate/models/account_move_line.py:46
+#: code:addons/account_banking_mandate/models/account_move_line.py:42
 #, python-format
 msgid ""
 "The item %s of journal %s has a different company than that of the linked "

@@ -25,6 +25,11 @@ class AccountMoveLine(models.Model):
         string="Payment lines",
     )
 
+    @api.onchange('partner_id')
+    def _onchange_partner_id(self):
+        """Empty partner bank for avoiding inconsistencies."""
+        self.partner_bank_id = None
+
     @api.multi
     def _prepare_payment_line_vals(self, payment_order):
         self.ensure_one()
@@ -59,8 +64,14 @@ class AccountMoveLine(models.Model):
             # in this case
         if payment_order.payment_type == 'outbound':
             amount_currency *= -1
-        partner_bank_id = self.partner_bank_id.id or first(
-            self.partner_id.bank_ids).id
+        partner_bank_id = self.partner_bank_id.id
+        if not partner_bank_id:
+            bank_ids = self.partner_id.bank_ids
+            # trick this for making it compatible with partner_bank_active
+            # forcing the search for discarding inactive records
+            if 'active' in bank_ids:  # pragma: no cover
+                bank_ids = bank_ids.filtered('active')
+            partner_bank_id = first(bank_ids).id
         vals = {
             'order_id': payment_order.id,
             'partner_bank_id': partner_bank_id,
@@ -137,3 +148,37 @@ class AccountMoveLine(models.Model):
             )
             result.update(arch=arch, fields=fields)
         return result
+
+    @api.multi
+    def reconcile(self, writeoff_acc_id=False, writeoff_journal_id=False):
+        """ Set payment orders with fully reconciled lines to done """
+        result = super().reconcile(
+            writeoff_acc_id=writeoff_acc_id,
+            writeoff_journal_id=writeoff_journal_id,
+        )
+        if not self.env.context.get('account_payment_order_defer_close'):
+            self.filtered('full_reconcile_id')._close_payment_orders()
+        return result
+
+    @api.multi
+    def _close_payment_orders(self):
+        """
+        Set payment orders linked to move lines in self to done if all
+        of them are reconciled
+        """
+        for order in self._find_payment_orders():
+            if order.state != 'done' and order._all_lines_reconciled():
+                order.action_done()
+
+    @api.multi
+    def _find_payment_orders(self):
+        """
+        Return all payment orders linked (directly by payment_line_ids
+        or indirectly by reconciliation with a transfer account) to self
+        """
+        return self.mapped(
+            'move_id.line_ids.bank_payment_line_id.order_id'
+        ) | self.mapped(
+            'full_reconcile_id.reconciled_line_ids.move_id.line_ids.'
+            'bank_payment_line_id.order_id'
+        )
