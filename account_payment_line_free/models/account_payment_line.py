@@ -9,7 +9,7 @@ from odoo import models, fields, exceptions, api
 class AccountPaymentLine(models.Model):
     _inherit = 'account.payment.line'
 
-    @api.one
+    @api.multi
     def free_line(self, rsn=''):
         """
         Set move_line_id to Null in order to cancel the related invoice
