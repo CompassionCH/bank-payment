@@ -83,6 +83,12 @@ class AccountMove(models.Model):
         for move in self:
             if move.state != "posted":
                 raise UserError(_("The invoice %s is not in Posted state") % move.name)
+
+            # Check if mandate status is not cancel
+            if move.mandate_id.state == 'cancel':
+                raise UserError(_("The mandate %s is in Cancel state") %
+                                move.mandate_id.display_name)
+
             applicable_lines = move.line_ids.filtered(
                 lambda x: (
                     not x.reconciled
