@@ -85,9 +85,9 @@ class AccountMove(models.Model):
                 raise UserError(_("The invoice %s is not in Posted state") % move.name)
 
             # Check if mandate status is not cancel
-            if move.mandate_id.state == "cancel":
+            if move.mandate_id.state != "valid":
                 raise UserError(
-                    _("The mandate %s is in Cancel state")
+                    _("The mandate %s is not valid.")
                     % move.mandate_id.display_name
                 )
 
