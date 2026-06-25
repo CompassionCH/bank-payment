@@ -16,14 +16,21 @@ Account Payment Export via SFTP
 .. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
-.. |badge3| image:: https://img.shields.io/badge/github-CompassionCH%2Fbank--payment-lightgray.png?logo=github
-    :target: https://github.com/CompassionCH/bank-payment/tree/14.0/account_payment_export_sftp
-    :alt: CompassionCH/bank-payment
+.. |badge3| image:: https://img.shields.io/badge/github-OCA%2Fbank--payment-lightgray.png?logo=github
+    :target: https://github.com/OCA/bank-payment/tree/18.0/account_payment_export_sftp
+    :alt: OCA/bank-payment
+.. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
+    :target: https://translation.odoo-community.org/projects/bank-payment-18-0/bank-payment-18-0-account_payment_export_sftp
+    :alt: Translate me on Weblate
+.. |badge5| image:: https://img.shields.io/badge/runboat-Try%20me-875A7B.png
+    :target: https://runboat.odoo-community.org/builds?repo=OCA/bank-payment&target_branch=18.0
+    :alt: Try me on Runboat
 
-|badge1| |badge2| |badge3|
+|badge1| |badge2| |badge3| |badge4| |badge5|
 
-This module add the functionality of sending the account.payment.orders file generated
-to an EDI SFTP backend. It's useful to communicate with some bank.
+This module add the functionality of sending the account.payment.orders
+file generated to an EDI SFTP backend. It's useful to communicate with
+some bank.
 
 **Table of contents**
 
@@ -35,32 +42,30 @@ Usage
 
 To use this module, you need to:
 
-#. Go to EDI and configure a backend and an exchange type
-
-#. Create a payment order and choose an EDI exchange type
-
-#. When generating the file an edi exchange should be created
+1. Go to EDI and configure a backend and an exchange type
+2. Create a payment order and choose an EDI exchange type
+3. When generating the file an edi exchange should be created
 
 Known issues / Roadmap
 ======================
 
-* Automate a generic treatment process of the files
+- Automate a generic treatment process of the files
 
 Changelog
 =========
 
 14.0.1.0.0 (2023-06-21)
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
-* [ADD] Account_payment_export_sftp
+- [ADD] Account_payment_export_sftp
 
 Bug Tracker
 ===========
 
-Bugs are tracked on `GitHub Issues <https://github.com/CompassionCH/bank-payment/issues>`_.
+Bugs are tracked on `GitHub Issues <https://github.com/OCA/bank-payment/issues>`_.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
-`feedback <https://github.com/CompassionCH/bank-payment/issues/new?body=module:%20account_payment_export_sftp%0Aversion:%2014.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
+`feedback <https://github.com/OCA/bank-payment/issues/new?body=module:%20account_payment_export_sftp%0Aversion:%2018.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
 
 Do not contact contributors directly about support or help with technical issues.
 
@@ -68,18 +73,28 @@ Credits
 =======
 
 Authors
-~~~~~~~
+-------
 
 * Compassion CH
 
 Contributors
-~~~~~~~~~~~~
+------------
 
-* Simon Gonzalez <simon.gonzalez@bluewin.ch> (https://compassion.ch)
+- Simon Gonzalez <simon.gonzalez@bluewin.ch> (https://compassion.ch)
 
 Maintainers
-~~~~~~~~~~~
+-----------
 
-This module is part of the `CompassionCH/bank-payment <https://github.com/CompassionCH/bank-payment/tree/14.0/account_payment_export_sftp>`_ project on GitHub.
+This module is maintained by the OCA.
 
-You are welcome to contribute.
+.. image:: https://odoo-community.org/logo.png
+   :alt: Odoo Community Association
+   :target: https://odoo-community.org
+
+OCA, or the Odoo Community Association, is a nonprofit organization whose
+mission is to support the collaborative development of Odoo features and
+promote its widespread use.
+
+This module is part of the `OCA/bank-payment <https://github.com/OCA/bank-payment/tree/18.0/account_payment_export_sftp>`_ project on GitHub.
+
+You are welcome to contribute. To learn how please visit https://odoo-community.org/page/Contribute.
