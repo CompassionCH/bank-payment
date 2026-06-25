@@ -9,11 +9,11 @@
         />
         <field name="arch" type="xml">
             <field name="group_lines" position="after">
-                <field name="disable_edi_auto" />
+                <field name="disable_edi_auto"/>
                 <field
                     name="edi_exchange_type_id"
-                    attrs="{'invisible': [('disable_edi_auto', '=', True)],
-                'required': [('disable_edi_auto', '=', False)]}"
+                    invisible="disable_edi_auto == True"
+                    required="disable_edi_auto == False"
                 />
             </field>
         </field>

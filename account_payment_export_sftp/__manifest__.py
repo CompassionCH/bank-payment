@@ -15,6 +15,7 @@
         "edi_storage_oca",  # OCA/edi
         "storage_backend_sftp",  # OCA/storage
         "account_payment_return_import_iso20022",  # OCA/account-payment
+        "connector" # OCA/connector
     ],
     "data": [
         "views/account_payment_mode_view.xml",
