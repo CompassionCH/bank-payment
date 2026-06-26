@@ -13,9 +13,7 @@ class AccountPaymentOrder(models.Model):
         if self:
             attachment = self.env["ir.attachment"].browse(action.get("res_id"))
             self.with_context(
-                {
-                    "exchange_file": attachment.datas,
-                    "exchange_filename": attachment.display_name,
-                }
+                exchange_file=attachment.datas,
+                exchange_filename=attachment.display_name,
             )._event("on_file_generation_payment_order").notify(self)
         return action

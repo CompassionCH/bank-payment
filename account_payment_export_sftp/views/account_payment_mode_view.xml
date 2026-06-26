@@ -9,7 +9,7 @@
         />
         <field name="arch" type="xml">
             <field name="group_lines" position="after">
-                <field name="disable_edi_auto"/>
+                <field name="disable_edi_auto" />
                 <field
                     name="edi_exchange_type_id"
                     invisible="disable_edi_auto == True"
