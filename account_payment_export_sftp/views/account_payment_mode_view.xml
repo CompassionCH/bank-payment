@@ -12,8 +12,8 @@
                 <field name="disable_edi_auto" />
                 <field
                     name="edi_exchange_type_id"
-                    invisible="disable_edi_auto == True"
-                    required="disable_edi_auto == False"
+                    invisible="disable_edi_auto"
+                    required="not disable_edi_auto"
                 />
             </field>
         </field>
