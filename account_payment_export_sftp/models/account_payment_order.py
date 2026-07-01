@@ -10,8 +10,8 @@ class AccountPaymentOrder(models.Model):
 
     def open2generated(self):
         action = super().open2generated()
-        if self:
-            attachment = self.env["ir.attachment"].browse(action.get("res_id"))
+        if self and isinstance(action, dict) and action.get("res_id"):
+            attachment = self.env["ir.attachment"].browse(action["res_id"])
             self.with_context(
                 exchange_file=attachment.datas,
                 exchange_filename=attachment.display_name,
