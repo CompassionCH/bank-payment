@@ -21,6 +21,16 @@ from odoo.tools.sql import column_exists, table_exists
 _logger = logging.getLogger(__name__)
 
 LEGACY_COLUMN = "openupgrade_legacy_16_0_storage_id"
+SETTING_FIELDS = (
+    "backend_type",
+    "directory_path",
+    "sftp_auth_method",
+    "sftp_login",
+    "sftp_password",
+    "sftp_port",
+    "sftp_server",
+    "sftp_ssh_private_key",
+)
 
 
 def migrate_edi_storage(env):
@@ -113,19 +123,16 @@ def _get_linked_storage(env, storage_backend_id):
 
 def _create_sftp_storage(env, storage_backend_id):
     env.cr.execute(
-        SQL(
-            "SELECT name, server_env_defaults FROM storage_backend WHERE id = %s",
-            storage_backend_id,
-        )
+        SQL("SELECT * FROM storage_backend WHERE id = %s", storage_backend_id)
     )
-    row = env.cr.fetchone()
+    row = env.cr.dictfetchone()
     if not row:
         _logger.warning(
             "EDI storage migration: storage.backend %s not found", storage_backend_id
         )
         return env["fs.storage"]
-    name, env_defaults = row
-    settings = read_env_defaults(env_defaults)
+    name = row["name"]
+    settings = read_backend_settings(row)
     backend_type = settings.get("backend_type")
     if backend_type != "sftp":
         _logger.warning(
@@ -167,6 +174,30 @@ def _create_sftp_storage(env, storage_backend_id):
         ", ".join(sorted(options)),
     )
     return storage
+
+
+def read_backend_settings(row):
+    """Return the settings of a storage_backend row as {field name: value}.
+
+    v14 kept them in ``server_env_defaults`` (server environment). A newer
+    storage_backend_sftp without server environment keeps them in columns:
+    use a column only when ``server_env_defaults`` has no value for it.
+    """
+    settings = {
+        field_name: row[field_name]
+        for field_name in SETTING_FIELDS
+        if row.get(field_name) not in (None, "")
+    }
+    settings.update(
+        {
+            field_name: value
+            for field_name, value in read_env_defaults(
+                row.get("server_env_defaults")
+            ).items()
+            if value not in (None, "")
+        }
+    )
+    return settings
 
 
 def read_env_defaults(env_defaults):

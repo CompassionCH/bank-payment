@@ -30,6 +30,12 @@ class TestStorageMigration(TransactionCase):
                 SQL.identifier(LEGACY_COLUMN),
             )
         )
+        # A migrated database has this column. A newer storage_backend_sftp
+        # without server environment does not create it.
+        cls.env.cr.execute(
+            "ALTER TABLE storage_backend "
+            "ADD COLUMN IF NOT EXISTS server_env_defaults text"
+        )
         cls.key_text = cls._new_key_text()
         cls.storage_handler = cls.env.ref(
             "edi_storage_oca.model_edi_oca_storage_handler"
@@ -198,6 +204,43 @@ class TestStorageMigration(TransactionCase):
         self.assertEqual(options["password"], "test-password")
         self.assertEqual(options["port"], 22)
         self.assertNotIn("pkey", options)
+
+    def test_migrate_reads_plain_columns(self):
+        """A newer storage_backend_sftp keeps the settings in columns."""
+        for column, column_type in (
+            ("backend_type", "varchar"),
+            ("sftp_auth_method", "varchar"),
+            ("sftp_login", "varchar"),
+            ("sftp_password", "varchar"),
+            ("sftp_port", "integer"),
+            ("sftp_server", "varchar"),
+        ):
+            self.env.cr.execute(
+                SQL(
+                    "ALTER TABLE storage_backend ADD COLUMN IF NOT EXISTS %s %s",
+                    SQL.identifier(column),
+                    SQL(column_type),
+                )
+            )
+        self.env.cr.execute(
+            SQL(
+                """
+                UPDATE storage_backend
+                SET server_env_defaults = NULL, backend_type = 'sftp',
+                    sftp_auth_method = 'pwd', sftp_login = 'column-user',
+                    sftp_password = 'column-password', sftp_port = 2022,
+                    sftp_server = 'column.example.com'
+                WHERE id = %s
+                """,
+                self.storage_backend.id,
+            )
+        )
+        self._migrate()
+        options = self._new_storages().json_options
+        self.assertEqual(options["host"], "column.example.com")
+        self.assertEqual(options["port"], 2022)
+        self.assertEqual(options["username"], "column-user")
+        self.assertEqual(options["password"], "column-password")
 
     def test_migrate_skips_other_backend_type(self):
         self._set_env_defaults({"backend_type_env_default": "filesystem"})
