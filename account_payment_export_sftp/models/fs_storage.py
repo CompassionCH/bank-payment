@@ -3,9 +3,12 @@
 
 from io import StringIO
 
-from odoo import models
+import paramiko
 
-from odoo.addons.storage_backend_sftp.components.sftp_adapter import load_ssh_key
+from odoo import models
+from odoo.exceptions import UserError
+
+KEY_CLASSES = (paramiko.RSAKey, paramiko.ECDSAKey, paramiko.Ed25519Key)
 
 
 class FSStorage(models.Model):
@@ -17,5 +20,20 @@ class FSStorage(models.Model):
         if self.protocol == "sftp" and isinstance(pkey, str):
             # paramiko needs a key object, but the JSON options can only hold
             # the key as text.
-            options = dict(options, pkey=load_ssh_key(StringIO(pkey)))
+            options = dict(options, pkey=self._load_private_key(pkey))
         return options
+
+    def _load_private_key(self, key_text):
+        """Return a paramiko key object from a private key in text form."""
+        for key_class in KEY_CLASSES:
+            try:
+                return key_class.from_private_key(StringIO(key_text))
+            except paramiko.SSHException:
+                continue
+        # Never put the key in the message.
+        raise UserError(
+            self.env._(
+                "FS storage %(name)s: the private key (pkey option) cannot be read.",
+                name=self.display_name,
+            )
+        )

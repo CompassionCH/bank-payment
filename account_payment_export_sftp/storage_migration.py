@@ -15,6 +15,7 @@ It never logs a setting value: settings hold credentials.
 import json
 import logging
 
+from odoo.tools import SQL
 from odoo.tools.sql import column_exists, table_exists
 
 _logger = logging.getLogger(__name__)
@@ -36,13 +37,16 @@ def migrate_edi_storage(env):
     # The SQL below must see the pending ORM changes.
     env.flush_all()
     cr.execute(
-        f"""
-        SELECT {LEGACY_COLUMN}, array_agg(id ORDER BY id)
-        FROM edi_backend
-        WHERE storage_id IS NULL AND {LEGACY_COLUMN} IS NOT NULL
-        GROUP BY {LEGACY_COLUMN}
-        ORDER BY {LEGACY_COLUMN}
-        """
+        SQL(
+            """
+            SELECT %(legacy)s, array_agg(id ORDER BY id)
+            FROM edi_backend
+            WHERE storage_id IS NULL AND %(legacy)s IS NOT NULL
+            GROUP BY %(legacy)s
+            ORDER BY %(legacy)s
+            """,
+            legacy=SQL.identifier(LEGACY_COLUMN),
+        )
     )
     rows = cr.fetchall()
     if not rows:
@@ -61,12 +65,15 @@ def migrate_edi_storage(env):
         backends.flush_recordset()
         # Same as edi_storage_oca 16.0.1.0.2: each record gets its backend storage.
         cr.execute(
-            """
-            UPDATE edi_exchange_record
-            SET storage_id = %s
-            WHERE backend_id IN %s AND storage_id IS NULL
-            """,
-            (storage.id, tuple(backend_ids)),
+            SQL(
+                """
+                UPDATE edi_exchange_record
+                SET storage_id = %s
+                WHERE backend_id IN %s AND storage_id IS NULL
+                """,
+                storage.id,
+                tuple(backend_ids),
+            )
         )
         record_count = cr.rowcount
         env["edi.exchange.record"].invalidate_model(["storage_id"])
@@ -79,7 +86,8 @@ def migrate_edi_storage(env):
             backends.ids,
             record_count,
         )
-        _check_output_exchange_types(env, backends)
+        _check_exchange_types(env, backends)
+        _log_pending_output_records(env, backends)
 
 
 def _get_linked_storage(env, storage_backend_id):
@@ -88,12 +96,16 @@ def _get_linked_storage(env, storage_backend_id):
     This happens when only some backends were linked before.
     """
     env.cr.execute(
-        f"""
-        SELECT storage_id FROM edi_backend
-        WHERE {LEGACY_COLUMN} = %s AND storage_id IS NOT NULL
-        LIMIT 1
-        """,
-        (storage_backend_id,),
+        SQL(
+            """
+            SELECT storage_id FROM edi_backend
+            WHERE %s = %s AND storage_id IS NOT NULL
+            ORDER BY id
+            LIMIT 1
+            """,
+            SQL.identifier(LEGACY_COLUMN),
+            storage_backend_id,
+        )
     )
     row = env.cr.fetchone()
     return env["fs.storage"].browse(row[0]) if row else env["fs.storage"]
@@ -101,8 +113,10 @@ def _get_linked_storage(env, storage_backend_id):
 
 def _create_sftp_storage(env, storage_backend_id):
     env.cr.execute(
-        "SELECT name, server_env_defaults FROM storage_backend WHERE id = %s",
-        (storage_backend_id,),
+        SQL(
+            "SELECT name, server_env_defaults FROM storage_backend WHERE id = %s",
+            storage_backend_id,
+        )
     )
     row = env.cr.fetchone()
     if not row:
@@ -124,6 +138,8 @@ def _create_sftp_storage(env, storage_backend_id):
     options = get_sftp_options(settings)
     empty = sorted(key for key, value in options.items() if value in (None, ""))
     if empty:
+        # Maybe v14 read them from a server environment file: its section
+        # was [storage_backend.<name>], in 18 it is [fs_storage.<code>].
         _logger.warning(
             "EDI storage migration: storage.backend %s, empty sftp options: %s",
             storage_backend_id,
@@ -136,12 +152,13 @@ def _create_sftp_storage(env, storage_backend_id):
             "protocol": "sftp",
             "options": json.dumps(options),
             "directory_path": settings.get("directory_path") or False,
-            # The default "marker_file" writes a file at the root of the server
-            # each time the storage is used. A bank server may refuse it, so we
-            # only list a file, like v14 which never wrote there.
-            "check_connection_method": "ls",
         }
     )
+    # The default "marker_file" writes a file at the root of the server each
+    # time the storage is used. A bank server may refuse it, so we only list a
+    # file, like v14 which never wrote there. Set it after create: on create,
+    # the default of its server env field wins over the given value.
+    storage.write({"check_connection_method": "ls"})
     env.registry.clear_cache()
     _logger.info(
         "EDI storage migration: fs.storage %s created (sftp, auth %s, options %s)",
@@ -201,59 +218,101 @@ def get_sftp_options(settings):
 
 
 def _get_free_code(env, name, storage_backend_id):
-    code = env["ir.http"]._slugify(name or "").replace("-", "_") or "edi_sftp"
-    if env["fs.storage"].search_count([("code", "=", code)]):
-        code = f"{code}_{storage_backend_id}"
+    base_code = env["ir.http"]._slugify(name or "").replace("-", "_") or "edi_sftp"
+    code = base_code
+    suffix = 0
+    while env["fs.storage"].search_count([("code", "=", code)]):
+        suffix += 1
+        code = f"{base_code}_{storage_backend_id}" + (
+            f"_{suffix}" if suffix > 1 else ""
+        )
     return code
 
 
-def _check_output_exchange_types(env, backends):
-    """Make sure the output exchange types can send files to the storage.
+def _check_exchange_types(env, backends):
+    """Make sure the exchange types of the backends can use the storage.
 
-    In 18, a type sends with the model in ``send_model_id``. edi_oca puts the
-    component handler where it is empty, but no module has a send component
-    for these types: only the storage handler of edi_storage_oca can send.
+    In 18, a type sends with the model in ``send_model_id`` and receives with
+    ``receive_model_id``. edi_storage_oca 18.0.1.0.0 sets its storage handler
+    on the types of active backends only. Fill the empty ones the same way, so
+    edi_oca does not put its component handler there later: no module has a
+    component to send or receive these files. Other handlers can be on
+    purpose, so we only report them.
     """
     storage_handler = env.ref("edi_storage_oca.model_edi_oca_storage_handler")
-    component_handler = env.ref(
-        "edi_component_oca.model_edi_oca_component_handler", raise_if_not_found=False
-    )
-    exchange_types = (
-        env["edi.exchange.type"]
-        .with_context(active_test=False)
-        .search(
-            [
-                ("direction", "=", "output"),
-                "|",
-                ("backend_id", "in", backends.ids),
-                "&",
-                ("backend_id", "=", False),
-                ("backend_type_id", "in", backends.backend_type_id.ids),
-            ]
+    for direction, field_name in (
+        ("output", "send_model_id"),
+        ("input", "receive_model_id"),
+    ):
+        exchange_types = (
+            env["edi.exchange.type"]
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("direction", "=", direction),
+                    "|",
+                    ("backend_id", "in", backends.ids),
+                    "&",
+                    ("backend_id", "=", False),
+                    ("backend_type_id", "in", backends.backend_type_id.ids),
+                ]
+            )
+        )
+        to_fix = exchange_types.filtered(lambda t, f=field_name: not t[f])
+        if to_fix:
+            to_fix.write({field_name: storage_handler.id})
+        other = exchange_types.filtered(lambda t, f=field_name: t[f] != storage_handler)
+        _logger.info(
+            "EDI storage migration: %s %s exchange types, %s set on %s",
+            len(exchange_types),
+            direction,
+            field_name,
+            to_fix.ids,
+        )
+        if other:
+            _logger.warning(
+                "EDI storage migration: %s exchange types %s have another %s, "
+                "please check them",
+                direction,
+                other.ids,
+                field_name,
+            )
+        if direction == "output":
+            no_dir = backends.filtered(lambda b: not b.output_dir_pending)
+            if exchange_types and no_dir:
+                _logger.warning(
+                    "EDI storage migration: EDI backends %s have no output "
+                    "pending directory, files go to the root of the server",
+                    no_dir.ids,
+                )
+
+
+def _log_pending_output_records(env, backends):
+    """Report output records that the hourly EDI cron will now send.
+
+    Before this migration they could not be sent. Check them before the
+    crons run: some may be old.
+    """
+    env.cr.execute(
+        SQL(
+            """
+            SELECT r.edi_exchange_state, count(*)
+            FROM edi_exchange_record r
+            JOIN edi_exchange_type t ON t.id = r.type_id
+            WHERE r.backend_id IN %s
+              AND t.direction = 'output'
+              AND r.edi_exchange_state IN ('new', 'output_pending')
+            GROUP BY r.edi_exchange_state
+            ORDER BY r.edi_exchange_state
+            """,
+            tuple(backends.ids),
         )
     )
-    to_fix = exchange_types.filtered(
-        lambda t: not t.send_model_id or t.send_model_id == component_handler
-    )
-    if to_fix:
-        to_fix.write({"send_model_id": storage_handler.id})
-    other = exchange_types - to_fix
-    other = other.filtered(lambda t: t.send_model_id != storage_handler)
-    _logger.info(
-        "EDI storage migration: %s output exchange types, send handler set on %s",
-        len(exchange_types),
-        to_fix.ids,
-    )
-    if other:
+    counts = dict(env.cr.fetchall())
+    if counts:
         _logger.warning(
-            "EDI storage migration: output exchange types %s use another send "
-            "handler, please check them",
-            other.ids,
-        )
-    no_dir = backends.filtered(lambda b: not b.output_dir_pending)
-    if exchange_types and no_dir:
-        _logger.warning(
-            "EDI storage migration: EDI backends %s have no output pending "
-            "directory, files go to the root of the server",
-            no_dir.ids,
+            "EDI storage migration: output records waiting to be sent on "
+            "backends %s: %s. The EDI crons will send them.",
+            backends.ids,
+            counts,
         )

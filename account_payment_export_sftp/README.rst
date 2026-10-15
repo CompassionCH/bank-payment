@@ -46,6 +46,14 @@ To use this module, you need to:
 2. Create a payment order and choose an EDI exchange type
 3. When generating the file an edi exchange should be created
 
+For an SFTP FS storage with an SSH key, put the private key as text in
+the ``pkey`` option. Example:
+``{"host": "sftp.example.com", "port": 22, "username": "user", "pkey": "-----BEGIN RSA PRIVATE KEY-----\n..."}``.
+
+When the database is neutralized (for example a copy for tests), the EDI
+backends lose their storage, so no file goes to the bank. To test with a
+server, link a test storage to the backend again.
+
 Known issues / Roadmap
 ======================
 
@@ -53,6 +61,17 @@ Known issues / Roadmap
 
 Changelog
 =========
+
+18.0.1.0.1 (2026-10-15)
+-----------------------
+
+- [FIX] Migration: create the SFTP FS storage from the old storage
+  backend and link the EDI backends and exchange records to it. The 16.0
+  migration of edi_storage_oca did not do it.
+- [ADD] An SFTP FS storage can keep its private key as text in the
+  ``pkey`` option.
+- [ADD] Neutralize: a copy of the database has no storage on its EDI
+  backends, so it cannot send files to the bank.
 
 14.0.1.0.0 (2023-06-21)
 -----------------------
