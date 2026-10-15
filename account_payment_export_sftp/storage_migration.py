@@ -1,15 +1,14 @@
 # Copyright 2026 Compassion CH (<https://www.compassion.ch>)
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
-"""Create the SFTP fs.storage that the 16.0 migration of edi_storage_oca missed.
+"""Give an sftp fs.storage to the EDI backends that have none.
 
-In edi_storage_oca 16.0.1.0.0, pre-migrate renames ``edi_backend.storage_id``
-(a storage.backend) to a legacy column. Then post-migrate reads the new,
-empty ``storage_id`` column, so it creates no fs.storage and links nothing.
-The settings are still in ``storage_backend.server_env_defaults``.
+Such a backend has no ``storage_id``, but its column ``LEGACY_COLUMN`` holds
+the id of a ``storage_backend`` row with the server settings. This code
+creates the fs.storage from these settings and links the EDI backends and
+their exchange records to it.
 
-This code creates the fs.storage from these settings and links the EDI
-backends and their exchange records to it. It never connects to the server.
-It never logs a setting value: settings hold credentials.
+It never connects to the server. It never logs a setting value: settings
+hold credentials.
 """
 
 import json
@@ -73,7 +72,7 @@ def migrate_edi_storage(env):
         )
         backends.write({"storage_id": storage.id})
         backends.flush_recordset()
-        # Same as edi_storage_oca 16.0.1.0.2: each record gets its backend storage.
+        # Each exchange record gets the storage of its backend.
         cr.execute(
             SQL(
                 """
@@ -145,8 +144,8 @@ def _create_sftp_storage(env, storage_backend_id):
     options = get_sftp_options(settings)
     empty = sorted(key for key, value in options.items() if value in (None, ""))
     if empty:
-        # Maybe v14 read them from a server environment file: its section
-        # was [storage_backend.<name>], in 18 it is [fs_storage.<code>].
+        # The values can come from a server environment file instead of the
+        # database: then set them in its section [fs_storage.<code>].
         _logger.warning(
             "EDI storage migration: storage.backend %s, empty sftp options: %s",
             storage_backend_id,
@@ -161,10 +160,10 @@ def _create_sftp_storage(env, storage_backend_id):
             "directory_path": settings.get("directory_path") or False,
         }
     )
-    # The default "marker_file" writes a file at the root of the server each
-    # time the storage is used. A bank server may refuse it, so we only list a
-    # file, like v14 which never wrote there. Set it after create: on create,
-    # the default of its server env field wins over the given value.
+    # "ls" only reads: the default "marker_file" writes a file at the root of
+    # the server each time the storage is used, and a bank server may refuse
+    # it. Write it after create: in create, the default of its server
+    # environment field wins over a given value.
     storage.write({"check_connection_method": "ls"})
     env.registry.clear_cache()
     _logger.info(
@@ -179,9 +178,9 @@ def _create_sftp_storage(env, storage_backend_id):
 def read_backend_settings(row):
     """Return the settings of a storage_backend row as {field name: value}.
 
-    v14 kept them in ``server_env_defaults`` (server environment). A newer
-    storage_backend_sftp without server environment keeps them in columns:
-    use a column only when ``server_env_defaults`` has no value for it.
+    The settings are in ``server_env_defaults`` (server environment) or in
+    columns (storage_backend_sftp without server environment). A value of
+    ``server_env_defaults`` wins over the column.
     """
     settings = {
         field_name: row[field_name]
@@ -203,24 +202,28 @@ def read_backend_settings(row):
 def read_env_defaults(env_defaults):
     """Return the server environment defaults as {field name: value}.
 
-    v14 saved them as ``<field>_env_default``, v18 reads
-    ``x_<field>_env_default``: accept both. When both are set, keep the v14
-    value: it is the migrated data, the v18 one can be a default only.
+    The keys are ``<field>_env_default`` or ``x_<field>_env_default``:
+    accept both. When both have a value, the key without "x_" wins: the ORM
+    can write a default value under the "x_" key.
     """
     if not env_defaults:
         return {}
     if isinstance(env_defaults, str):
         env_defaults = json.loads(env_defaults)
     settings = {}
-    v14_settings = {}
+    unprefixed_settings = {}
     for key, value in env_defaults.items():
         field_name = key.removesuffix("_env_default")
         if field_name.startswith("x_"):
             settings[field_name[2:]] = value
         else:
-            v14_settings[field_name] = value
+            unprefixed_settings[field_name] = value
     settings.update(
-        {name: value for name, value in v14_settings.items() if value not in (None, "")}
+        {
+            name: value
+            for name, value in unprefixed_settings.items()
+            if value not in (None, "")
+        }
     )
     return settings
 
@@ -236,8 +239,8 @@ def get_sftp_options(settings):
         "host": settings.get("sftp_server"),
         "port": int(settings.get("sftp_port") or 22),
         "username": settings.get("sftp_login"),
-        # Like v14: use only the saved credentials, not the SSH agent or the
-        # key files of the Odoo server.
+        # Use only the saved credentials, not the SSH agent or the key files
+        # of the Odoo server.
         "allow_agent": False,
         "look_for_keys": False,
     }
@@ -263,12 +266,10 @@ def _get_free_code(env, name, storage_backend_id):
 def _check_exchange_types(env, backends):
     """Make sure the exchange types of the backends can use the storage.
 
-    In 18, a type sends with the model in ``send_model_id`` and receives with
-    ``receive_model_id``. edi_storage_oca 18.0.1.0.0 sets its storage handler
-    on the types of active backends only. Fill the empty ones the same way, so
-    edi_oca does not put its component handler there later: no module has a
-    component to send or receive these files. Other handlers can be on
-    purpose, so we only report them.
+    A type sends with the model in ``send_model_id`` and receives with the
+    model in ``receive_model_id``. An empty one gets the storage handler of
+    edi_storage_oca: it sends and reads the files of the storage. Another
+    handler can be on purpose, so we only report it.
     """
     storage_handler = env.ref("edi_storage_oca.model_edi_oca_storage_handler")
     for direction, field_name in (
@@ -319,10 +320,9 @@ def _check_exchange_types(env, backends):
 
 
 def _log_pending_output_records(env, backends):
-    """Report output records that the hourly EDI cron will now send.
+    """Report the output records that the EDI crons will send to the storage.
 
-    Before this migration they could not be sent. Check them before the
-    crons run: some may be old.
+    Some may be old: check them before the crons run.
     """
     env.cr.execute(
         SQL(

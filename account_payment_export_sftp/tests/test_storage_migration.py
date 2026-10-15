@@ -16,7 +16,7 @@ LOGGER = "odoo.addons.account_payment_export_sftp.storage_migration"
 
 
 class TestStorageMigration(TransactionCase):
-    """Fake the state left by edi_storage_oca 16.0.1.0.0 and migrate it.
+    """Fake EDI backends without storage, with the legacy storage column.
 
     Nothing here connects to a server.
     """
@@ -30,8 +30,7 @@ class TestStorageMigration(TransactionCase):
                 SQL.identifier(LEGACY_COLUMN),
             )
         )
-        # A migrated database has this column. A newer storage_backend_sftp
-        # without server environment does not create it.
+        # storage_backend_sftp without server environment has no such column.
         cls.env.cr.execute(
             "ALTER TABLE storage_backend "
             "ADD COLUMN IF NOT EXISTS server_env_defaults text"
@@ -44,7 +43,7 @@ class TestStorageMigration(TransactionCase):
         # The ORM writes its defaults at flush: do it before the SQL below.
         storage_backend.flush_recordset()
         cls.storage_backend = storage_backend
-        # Same keys as the v14 data, without the "x_" prefix of v18.
+        # Keys without the "x_" prefix.
         cls._set_env_defaults(
             {
                 "backend_type_env_default": "sftp",
@@ -297,7 +296,7 @@ class TestStorageMigration(TransactionCase):
             read_env_defaults({"x_sftp_port_env_default": 22}), {"sftp_port": 22}
         )
         self.assertEqual(read_env_defaults(None), {})
-        # The v14 value wins over a v18 default, unless it is empty.
+        # The key without "x_" wins, unless its value is empty.
         self.assertEqual(
             read_env_defaults(
                 {
