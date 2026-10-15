@@ -379,14 +379,15 @@ some bank.</p>
 <li><a class="reference internal" href="#usage" id="toc-entry-1">Usage</a></li>
 <li><a class="reference internal" href="#known-issues-roadmap" id="toc-entry-2">Known issues / Roadmap</a></li>
 <li><a class="reference internal" href="#changelog" id="toc-entry-3">Changelog</a><ul>
-<li><a class="reference internal" href="#section-1" id="toc-entry-4">14.0.1.0.0 (2023-06-21)</a></li>
+<li><a class="reference internal" href="#section-1" id="toc-entry-4">18.0.1.0.1 (2026-10-15)</a></li>
+<li><a class="reference internal" href="#section-2" id="toc-entry-5">14.0.1.0.0 (2023-06-21)</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#bug-tracker" id="toc-entry-5">Bug Tracker</a></li>
-<li><a class="reference internal" href="#credits" id="toc-entry-6">Credits</a><ul>
-<li><a class="reference internal" href="#authors" id="toc-entry-7">Authors</a></li>
-<li><a class="reference internal" href="#contributors" id="toc-entry-8">Contributors</a></li>
-<li><a class="reference internal" href="#maintainers" id="toc-entry-9">Maintainers</a></li>
+<li><a class="reference internal" href="#bug-tracker" id="toc-entry-6">Bug Tracker</a></li>
+<li><a class="reference internal" href="#credits" id="toc-entry-7">Credits</a><ul>
+<li><a class="reference internal" href="#authors" id="toc-entry-8">Authors</a></li>
+<li><a class="reference internal" href="#contributors" id="toc-entry-9">Contributors</a></li>
+<li><a class="reference internal" href="#maintainers" id="toc-entry-10">Maintainers</a></li>
 </ul>
 </li>
 </ul>
@@ -399,6 +400,12 @@ some bank.</p>
 <li>Create a payment order and choose an EDI exchange type</li>
 <li>When generating the file an edi exchange should be created</li>
 </ol>
+<p>For an SFTP FS storage with an SSH key, put the private key as text in
+the <tt class="docutils literal">pkey</tt> option. Example:
+<tt class="docutils literal">{&quot;host&quot;: &quot;sftp.example.com&quot;, &quot;port&quot;: 22, &quot;username&quot;: &quot;user&quot;, &quot;pkey&quot;: <span class="pre">&quot;-----BEGIN</span> RSA PRIVATE <span class="pre">KEY-----\n...&quot;}</span></tt>.</p>
+<p>When the database is neutralized (for example a copy for tests), the EDI
+backends lose their storage, so no file goes to the bank. To test with a
+server, link a test storage to the backend again.</p>
 </div>
 <div class="section" id="known-issues-roadmap">
 <h1><a class="toc-backref" href="#toc-entry-2">Known issues / Roadmap</a></h1>
@@ -409,14 +416,26 @@ some bank.</p>
 <div class="section" id="changelog">
 <h1><a class="toc-backref" href="#toc-entry-3">Changelog</a></h1>
 <div class="section" id="section-1">
-<h2><a class="toc-backref" href="#toc-entry-4">14.0.1.0.0 (2023-06-21)</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-4">18.0.1.0.1 (2026-10-15)</a></h2>
+<ul class="simple">
+<li>[FIX] Migration: create the SFTP FS storage from the old storage
+backend and link the EDI backends and exchange records to it. The 16.0
+migration of edi_storage_oca did not do it.</li>
+<li>[ADD] An SFTP FS storage can keep its private key as text in the
+<tt class="docutils literal">pkey</tt> option.</li>
+<li>[ADD] Neutralize: a copy of the database has no storage on its EDI
+backends, so it cannot send files to the bank.</li>
+</ul>
+</div>
+<div class="section" id="section-2">
+<h2><a class="toc-backref" href="#toc-entry-5">14.0.1.0.0 (2023-06-21)</a></h2>
 <ul class="simple">
 <li>[ADD] Account_payment_export_sftp</li>
 </ul>
 </div>
 </div>
 <div class="section" id="bug-tracker">
-<h1><a class="toc-backref" href="#toc-entry-5">Bug Tracker</a></h1>
+<h1><a class="toc-backref" href="#toc-entry-6">Bug Tracker</a></h1>
 <p>Bugs are tracked on <a class="reference external" href="https://github.com/OCA/bank-payment/issues">GitHub Issues</a>.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
@@ -424,21 +443,21 @@ If you spotted it first, help us to smash it by providing a detailed and welcome
 <p>Do not contact contributors directly about support or help with technical issues.</p>
 </div>
 <div class="section" id="credits">
-<h1><a class="toc-backref" href="#toc-entry-6">Credits</a></h1>
+<h1><a class="toc-backref" href="#toc-entry-7">Credits</a></h1>
 <div class="section" id="authors">
-<h2><a class="toc-backref" href="#toc-entry-7">Authors</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-8">Authors</a></h2>
 <ul class="simple">
 <li>Compassion CH</li>
 </ul>
 </div>
 <div class="section" id="contributors">
-<h2><a class="toc-backref" href="#toc-entry-8">Contributors</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-9">Contributors</a></h2>
 <ul class="simple">
 <li>Simon Gonzalez &lt;<a class="reference external" href="mailto:simon.gonzalez&#64;bluewin.ch">simon.gonzalez&#64;bluewin.ch</a>&gt; (<a class="reference external" href="https://compassion.ch">https://compassion.ch</a>)</li>
 </ul>
 </div>
 <div class="section" id="maintainers">
-<h2><a class="toc-backref" href="#toc-entry-9">Maintainers</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-10">Maintainers</a></h2>
 <p>This module is maintained by the OCA.</p>
 <a class="reference external image-reference" href="https://odoo-community.org">
 <img alt="Odoo Community Association" src="https://odoo-community.org/logo.png" />
